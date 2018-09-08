@@ -1,5 +1,7 @@
 package com.example.user.visiontranslate;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
@@ -7,6 +9,7 @@ import android.provider.MediaStore;
 import android.support.design.widget.TabLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -26,6 +29,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.google.api.client.util.Lists;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
 import com.google.cloud.vision.v1.AnnotateImageResponse;
 import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;
@@ -41,6 +46,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.grpc.Context;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -137,8 +144,8 @@ public class MainActivity extends AppCompatActivity {
             fragment.setArguments(args);
             return fragment;
         }
-
         int TAKE_PHOTO_CODE = 0;
+        String photoURI = "";
         public static int count = 0;
 
         @Override
@@ -161,34 +168,48 @@ public class MainActivity extends AppCompatActivity {
                     Button capture = (Button) rootView.findViewById(R.id.btnCapture);
                     capture.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
-
+                            photoURI = Environment.getExternalStoragePublicDirectory(
+                                    Environment.DIRECTORY_DCIM) + "/Camera/IMG_20180908_161408.jpg";
+                            Log.d("result urlPath",photoURI);
+                            try{
+                                GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+                                Log.d("auth", credentials.toString());
+                            } catch  (Exception e){
+                                Log.e("fail",e.getMessage());
+                            }
+                            try {
+                                detectText(photoURI,getActivity());
+                            } catch (Exception e){
+                                Log.e("error", e.getMessage());
+                            }
                             // Here, the counter will be incremented each time, and the
                             // picture taken by camera will be stored as 1.jpg,2.jpg
                             // and likewise.
-                            count++;
-                            String file = dir+count+".jpg";
-//                            File newfile = new File(file);
-//                            try {
-//                                newfile.createNewFile();
-//                            }
-//                            catch (IOException e)
-//                            {
-//                            }
-
-//                            Uri outputFileUri = Uri.fromFile(newfile);
-
-//                            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//                            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+//                            count++;F
+//                            String file = dir+count+".jpg";
+////                            File newfile = new File(file);
+////                            try {
+////                                newfile.createNewFile();
+////                            }
+////                            catch (IOException e)
+////                            {
+////                            }
 //
-//                            startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
-                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                            Uri imageUri = FileProvider.getUriForFile(getContext(), getContext().getApplicationContext().getPackageName() + ".my.package.name.provider", new File(Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DCIM), "fname_" +
-                                    count + ".jpg"));
-                            intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-                            Log.d("urlPath",imageUri.toString());
-                            startActivityForResult(intent, TAKE_PHOTO_CODE);
+////                            Uri outputFileUri = Uri.fromFile(newfile);
+//
+////                            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+////                            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+////
+////                            startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+//                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//                            Uri imageUri = FileProvider.getUriForFile(getContext(), getContext().getApplicationContext().getPackageName() + ".my.package.name.provider", new File(Environment.getExternalStoragePublicDirectory(
+//                                    Environment.DIRECTORY_DCIM), "fname_" +
+//                                    count + ".jpg"));
+//                            intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+//                            photoURI = imageUri.toString();
+//                            Log.d("urlPath",imageUri.toString());
+//                            startActivityForResult(intent, TAKE_PHOTO_CODE);
                         }
                     });
                     break;
@@ -196,6 +217,14 @@ public class MainActivity extends AppCompatActivity {
                     rootView = inflater.inflate(R.layout.fragment_collection, container, false);
                     break;
             }
+//            photoURI = Environment.getExternalStoragePublicDirectory(
+//                    Environment.DIRECTORY_DCIM) + "/Camera/IMG_20180908_161408.jpg";
+//            Log.d("result urlPath",photoURI);
+//            try {
+//                detectText(photoURI);
+//            } catch (Exception e){
+//                Log.e("error", e.getMessage());
+//            }
             return rootView;
         }
     }
@@ -223,9 +252,16 @@ public class MainActivity extends AppCompatActivity {
             return 2;
         }
     }
-    public static void detectText(String filePath, PrintStream out) throws Exception, IOException {
+
+    public static void detectText(String filePath, Activity activity) throws Exception {
+//                .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+//        Context.Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+
+//        Storage storage = StorageOptions.getDefaultInstance().getService();
         List<AnnotateImageRequest> requests = new ArrayList<>();
 
+        String[] permissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
+        ActivityCompat.requestPermissions(activity,permissions,120);
         ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
 
         Image img = Image.newBuilder().setContent(imgBytes).build();
@@ -240,14 +276,15 @@ public class MainActivity extends AppCompatActivity {
 
             for (AnnotateImageResponse res : responses) {
                 if (res.hasError()) {
-                    out.printf("Error: %s\n", res.getError().getMessage());
+//                    out.printf("Error: %s\n", res.getError().getMessage());
                     return;
                 }
 
                 // For full list of available annotations, see http://g.co/cloud/vision/docs
                 for (EntityAnnotation annotation : res.getTextAnnotationsList()) {
-                    out.printf("Text: %s\n", annotation.getDescription());
-                    out.printf("Position : %s\n", annotation.getBoundingPoly());
+                        Log.d("result",annotation.getDescription());
+//                    out.printf("Text: %s\n", annotation.getDescription());
+//                    out.printf("Position : %s\n", annotation.getBoundingPoly());
                 }
             }
         }
