@@ -1,8 +1,13 @@
 package com.example.user.visiontranslate;
 
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.design.widget.TabLayout;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -11,13 +16,31 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import android.widget.Button;
 import android.widget.TextView;
+
+import com.google.cloud.vision.v1.AnnotateImageRequest;
+import com.google.cloud.vision.v1.AnnotateImageResponse;
+import com.google.cloud.vision.v1.BatchAnnotateImagesResponse;
+import com.google.cloud.vision.v1.EntityAnnotation;
+import com.google.cloud.vision.v1.Feature;
+import com.google.cloud.vision.v1.Image;
+import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.protobuf.ByteString;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -115,6 +138,9 @@ public class MainActivity extends AppCompatActivity {
             return fragment;
         }
 
+        int TAKE_PHOTO_CODE = 0;
+        public static int count = 0;
+
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
@@ -122,8 +148,49 @@ public class MainActivity extends AppCompatActivity {
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 case 1:
                     rootView = inflater.inflate(R.layout.fragment_main, container, false);
-                    TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-                    textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
+//                    TextView textView = (TextView) rootView.findViewById(R.id.section_label);
+//                    textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
+
+                    // Here, we are making a folder named picFolder to store
+
+                    // pics taken by the camera using this application.
+                    final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/picFolder/";
+                    File newdir = new File(dir);
+                    newdir.mkdirs();
+
+                    Button capture = (Button) rootView.findViewById(R.id.btnCapture);
+                    capture.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View v) {
+
+                            // Here, the counter will be incremented each time, and the
+                            // picture taken by camera will be stored as 1.jpg,2.jpg
+                            // and likewise.
+                            count++;
+                            String file = dir+count+".jpg";
+//                            File newfile = new File(file);
+//                            try {
+//                                newfile.createNewFile();
+//                            }
+//                            catch (IOException e)
+//                            {
+//                            }
+
+//                            Uri outputFileUri = Uri.fromFile(newfile);
+
+//                            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+//
+//                            startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
+                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            Uri imageUri = FileProvider.getUriForFile(getContext(), getContext().getApplicationContext().getPackageName() + ".my.package.name.provider", new File(Environment.getExternalStoragePublicDirectory(
+                                    Environment.DIRECTORY_DCIM), "fname_" +
+                                    count + ".jpg"));
+                            intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+                            Log.d("urlPath",imageUri.toString());
+                            startActivityForResult(intent, TAKE_PHOTO_CODE);
+                        }
+                    });
                     break;
                 case 2:
                     rootView = inflater.inflate(R.layout.fragment_collection, container, false);
@@ -154,6 +221,35 @@ public class MainActivity extends AppCompatActivity {
         public int getCount() {
             // Show 2 total pages.
             return 2;
+        }
+    }
+    public static void detectText(String filePath, PrintStream out) throws Exception, IOException {
+        List<AnnotateImageRequest> requests = new ArrayList<>();
+
+        ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
+
+        Image img = Image.newBuilder().setContent(imgBytes).build();
+        Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
+        AnnotateImageRequest request =
+                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
+        requests.add(request);
+
+        try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
+            BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);
+            List<AnnotateImageResponse> responses = response.getResponsesList();
+
+            for (AnnotateImageResponse res : responses) {
+                if (res.hasError()) {
+                    out.printf("Error: %s\n", res.getError().getMessage());
+                    return;
+                }
+
+                // For full list of available annotations, see http://g.co/cloud/vision/docs
+                for (EntityAnnotation annotation : res.getTextAnnotationsList()) {
+                    out.printf("Text: %s\n", annotation.getDescription());
+                    out.printf("Position : %s\n", annotation.getBoundingPoly());
+                }
+            }
         }
     }
 }
