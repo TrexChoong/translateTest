@@ -3,8 +3,10 @@ package com.example.user.visiontranslate;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.design.widget.TabLayout;
 import android.support.design.widget.FloatingActionButton;
@@ -214,6 +216,14 @@ public class MainActivity extends AppCompatActivity {
         if(!captureText.isEmpty()){
             Toast toast = Toast.makeText(this,"Saved : " + captureText,Toast.LENGTH_SHORT);
             toast.show();
+            SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            String holder = preferences.getString("selection","");
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putString("selection", holder + captureText + "@#@");
+            editor.commit();
+
+            Toast toast2 = Toast.makeText(this,"Saved Data: " +  holder + captureText + "@#@",Toast.LENGTH_SHORT);
+            toast2.show();
         }
 //        if(getApplicationContext()!= null){
 //            Activity rootView = this.getView();
