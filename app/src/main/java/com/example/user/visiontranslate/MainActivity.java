@@ -38,6 +38,7 @@ import com.google.cloud.vision.v1.EntityAnnotation;
 import com.google.cloud.vision.v1.Feature;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
+import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 
 import java.io.File;
@@ -85,15 +86,15 @@ public class MainActivity extends AppCompatActivity {
 
         mViewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
         tabLayout.addOnTabSelectedListener(new TabLayout.ViewPagerOnTabSelectedListener(mViewPager));
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+//
+//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+//        fab.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+//                        .setAction("Action", null).show();
+//            }
+//        });
 
     }
 
@@ -155,61 +156,17 @@ public class MainActivity extends AppCompatActivity {
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 case 1:
                     rootView = inflater.inflate(R.layout.fragment_main, container, false);
-//                    TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-//                    textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
-
-                    // Here, we are making a folder named picFolder to store
-
-                    // pics taken by the camera using this application.
-                    final String dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES) + "/picFolder/";
-                    File newdir = new File(dir);
-                    newdir.mkdirs();
 
                     Button capture = (Button) rootView.findViewById(R.id.btnCapture);
                     capture.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
-                            photoURI = Environment.getExternalStoragePublicDirectory(
-                                    Environment.DIRECTORY_DCIM) + "/Camera/IMG_20180908_161408.jpg";
-                            Log.d("result urlPath",photoURI);
-                            try{
-                                GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-                                Log.d("auth", credentials.toString());
-                            } catch  (Exception e){
-                                Log.e("fail",e.getMessage());
-                            }
-                            try {
-                                detectText(photoURI,getActivity());
-                            } catch (Exception e){
-                                Log.e("error", e.getMessage());
-                            }
-                            // Here, the counter will be incremented each time, and the
-                            // picture taken by camera will be stored as 1.jpg,2.jpg
-                            // and likewise.
-//                            count++;F
-//                            String file = dir+count+".jpg";
-////                            File newfile = new File(file);
-////                            try {
-////                                newfile.createNewFile();
-////                            }
-////                            catch (IOException e)
-////                            {
-////                            }
-//
-////                            Uri outputFileUri = Uri.fromFile(newfile);
-//
-////                            Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-////                            cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
-////
-////                            startActivityForResult(cameraIntent, TAKE_PHOTO_CODE);
-//                            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-//                            Uri imageUri = FileProvider.getUriForFile(getContext(), getContext().getApplicationContext().getPackageName() + ".my.package.name.provider", new File(Environment.getExternalStoragePublicDirectory(
-//                                    Environment.DIRECTORY_DCIM), "fname_" +
-//                                    count + ".jpg"));
-//                            intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-//                            photoURI = imageUri.toString();
-//                            Log.d("urlPath",imageUri.toString());
-//                            startActivityForResult(intent, TAKE_PHOTO_CODE);
+
+                            // launch Ocr capture activity.
+                            Intent intent = new Intent(getActivity(), ViewActivity.class);
+                            intent.putExtra(ViewActivity.AutoFocus, true);
+                            intent.putExtra(ViewActivity.UseFlash, false);
+
+                            startActivityForResult(intent, 0);
                         }
                     });
                     break;
@@ -262,9 +219,17 @@ public class MainActivity extends AppCompatActivity {
 
         String[] permissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
         ActivityCompat.requestPermissions(activity,permissions,120);
-        ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
+//        ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
 
-        Image img = Image.newBuilder().setContent(imgBytes).build();
+//        Image img = Image.newBuilder().setContent(imgBytes).build();
+//        Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
+//        AnnotateImageRequest request =
+//                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
+//        requests.add(request);
+
+        // requests cloud image
+        ImageSource imgSource = ImageSource.newBuilder().setGcsImageUri(filePath).build();
+        Image img = Image.newBuilder().setSource(imgSource).build();
         Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
         AnnotateImageRequest request =
                 AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
