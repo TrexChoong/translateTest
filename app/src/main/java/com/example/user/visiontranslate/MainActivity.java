@@ -29,6 +29,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import android.widget.Button;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -72,9 +73,10 @@ import java.util.List;
 import io.grpc.Context;
 
 public class MainActivity extends AppCompatActivity {
-    public String captureStatus="";
-    public String captureText="";
+    public String captureStatus = "";
+    public String captureText = "";
     public RequestQueue mRequestQueue;
+    public String selectedLang = "es";
 
     private TextView textStatus;
     private TextView textCaptured;
@@ -230,6 +232,28 @@ public class MainActivity extends AppCompatActivity {
                 case 2:
                     rootView = inflater.inflate(R.layout.fragment_collection, container, false);
 
+                    RadioGroup radioGroup = (RadioGroup) rootView.findViewById(R.id.myRadioGroup);
+
+                    radioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+
+                        @Override
+                        public void onCheckedChanged(RadioGroup group, int checkedId) {
+                            switch (checkedId){
+                                case R.id.zh_CN:
+                                    ((MainActivity)getActivity()).setSelectedLang("zh_CN");
+                                    break;
+
+                                case R.id.it:
+                                    ((MainActivity)getActivity()).setSelectedLang("it");
+                                    break;
+
+                                default:
+                                    ((MainActivity)getActivity()).setSelectedLang("es");
+                                    break;
+                            }
+                        }
+                    });
+
                     Button translate = (Button) rootView.findViewById(R.id.btnTranslate);
                     translate.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
@@ -246,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
                                 try{
                                     urlFriendly = URLEncoder.encode(holder, "utf-8");
 
-                                    String url = "https://translation.googleapis.com/language/translate/v2?target=es&key=AIzaSyBCQdqCtwkabyNwvkaSlb4D4ySYjFh-JA8&q="+urlFriendly;
+                                    String url = "https://translation.googleapis.com/language/translate/v2?target=" + ((MainActivity)getActivity()).getSelectedLang() + "&key=AIzaSyBCQdqCtwkabyNwvkaSlb4D4ySYjFh-JA8&q="+urlFriendly;
 
                                     JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
                                             (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
@@ -295,10 +319,16 @@ public class MainActivity extends AppCompatActivity {
         return  mRequestQueue;
     }
 
+    public String getSelectedLang() {
+        return selectedLang;
+    }
+
+    public void setSelectedLang(String lang) {
+        selectedLang = lang;
+    }
     @Override
     public void onResume() {
         super.onResume();
-        Log.d("resumed", captureStatus + captureText);
 
         if(!captureText.isEmpty()){
             Toast toast = Toast.makeText(this,"Saved : " + captureText,Toast.LENGTH_SHORT);
