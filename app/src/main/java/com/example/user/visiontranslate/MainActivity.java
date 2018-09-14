@@ -32,6 +32,16 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Cache;
+import com.android.volley.Network;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.BasicNetwork;
+import com.android.volley.toolbox.DiskBasedCache;
+import com.android.volley.toolbox.HurlStack;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.api.client.util.Lists;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -45,6 +55,9 @@ import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.w3c.dom.Text;
 
 import java.io.File;
@@ -59,6 +72,7 @@ import io.grpc.Context;
 public class MainActivity extends AppCompatActivity {
     public String captureStatus="";
     public String captureText="";
+    public RequestQueue mRequestQueue;
 
     private TextView textStatus;
     private TextView textCaptured;
@@ -81,6 +95,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Cache cache = new DiskBasedCache(getCacheDir(), 1024 * 1024); // 1MB cap
+
+        Network network = new BasicNetwork(new HurlStack());
+        mRequestQueue =  new RequestQueue(cache, network);
+        mRequestQueue.start();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -202,10 +221,57 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case 2:
                     rootView = inflater.inflate(R.layout.fragment_collection, container, false);
+
+                    Button translate = (Button) rootView.findViewById(R.id.btnTranslate);
+                    translate.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View v) {
+
+                            SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+                            String holder = preferences.getString("selection","");
+
+                            Toast toast2 = Toast.makeText(getActivity(),"Saved Data: " +  holder ,Toast.LENGTH_SHORT);
+                            toast2.show();
+                            String url = "https://translation.googleapis.com/language/translate/v2?target=es&key=AIzaSyBCQdqCtwkabyNwvkaSlb4D4ySYjFh-JA8&q=My%20name%20is%20Steve";
+
+                            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                                    (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+
+                                        @Override
+                                        public void onResponse(JSONObject response) {
+                                            String transalatedText = "";
+                                            try {
+                                                JSONObject data = response.getJSONObject("data");
+                                                JSONArray translations = data.getJSONArray("translations");
+                                                transalatedText = translations.getJSONObject(0).getString("translatedText");
+                                            }catch (JSONException e) {
+                                                Log.e("Error", e.getMessage());
+                                                e.printStackTrace();
+                                            }
+                                            Toast toast = Toast.makeText(getActivity(),"Translated Data: " +  transalatedText ,Toast.LENGTH_SHORT);
+                                            toast.show();
+                                        }
+                                    }, new Response.ErrorListener() {
+
+                                        @Override
+                                        public void onErrorResponse(VolleyError error) {
+                                            Toast toast = Toast.makeText(getActivity(),"Translation Failed: " +  error.toString() ,Toast.LENGTH_SHORT);
+                                            toast.show();
+                                        }
+                                    });
+
+                            ((MainActivity)getActivity()).getmRequestQueue().add(jsonObjectRequest);
+                        }
+                    });
+
+
                     break;
             }
             return rootView;
         }
+    }
+
+    public RequestQueue getmRequestQueue(){
+        return  mRequestQueue;
     }
 
     @Override
