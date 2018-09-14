@@ -28,7 +28,9 @@ import android.view.ViewGroup;
 
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.api.client.util.Lists;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.vision.v1.AnnotateImageRequest;
@@ -41,6 +43,8 @@ import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 
+import org.w3c.dom.Text;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -51,7 +55,13 @@ import java.util.List;
 import io.grpc.Context;
 
 public class MainActivity extends AppCompatActivity {
+    public String captureStatus="";
+    public String captureText="";
 
+    private TextView textStatus;
+    private TextView textCaptured;
+
+    public static View captureView;
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -98,6 +108,28 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(!data.getStringExtra(ViewActivity.TextBlockObject).isEmpty()) {
+
+            if (resultCode == CommonStatusCodes.SUCCESS) {
+                if (data != null) {
+                    String text = data.getStringExtra(ViewActivity.TextBlockObject);
+                    captureStatus = getResources().getString(R.string.ocr_success);
+                    captureText = text;
+                } else {
+                    captureStatus = getResources().getString(R.string.ocr_failure);
+                }
+            } else {
+                captureStatus = String.format(getString(R.string.ocr_error),
+                        CommonStatusCodes.getStatusCodeString(resultCode));
+            }
+
+        }
+        else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -145,9 +177,6 @@ public class MainActivity extends AppCompatActivity {
             fragment.setArguments(args);
             return fragment;
         }
-        int TAKE_PHOTO_CODE = 0;
-        String photoURI = "";
-        public static int count = 0;
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -156,7 +185,6 @@ public class MainActivity extends AppCompatActivity {
             switch (getArguments().getInt(ARG_SECTION_NUMBER)) {
                 case 1:
                     rootView = inflater.inflate(R.layout.fragment_main, container, false);
-
                     Button capture = (Button) rootView.findViewById(R.id.btnCapture);
                     capture.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
@@ -166,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
                             intent.putExtra(ViewActivity.AutoFocus, true);
                             intent.putExtra(ViewActivity.UseFlash, false);
 
-                            startActivityForResult(intent, 0);
+                            startActivityForResult(intent, 9003);
                         }
                     });
                     break;
@@ -174,16 +202,28 @@ public class MainActivity extends AppCompatActivity {
                     rootView = inflater.inflate(R.layout.fragment_collection, container, false);
                     break;
             }
-//            photoURI = Environment.getExternalStoragePublicDirectory(
-//                    Environment.DIRECTORY_DCIM) + "/Camera/IMG_20180908_161408.jpg";
-//            Log.d("result urlPath",photoURI);
-//            try {
-//                detectText(photoURI);
-//            } catch (Exception e){
-//                Log.e("error", e.getMessage());
-//            }
             return rootView;
         }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.d("resumed", captureStatus + captureText);
+
+        if(!captureText.isEmpty()){
+            Toast toast = Toast.makeText(this,"Saved : " + captureText,Toast.LENGTH_SHORT);
+            toast.show();
+        }
+//        if(getApplicationContext()!= null){
+//            Activity rootView = this.getView();
+//            TextView textStatus = (TextView)rootView.findViewById(R.id.status);
+//            textStatus.setText(captureStatus);
+//
+//            TextView textCaptured = (TextView)rootView.findViewById(R.id.result);
+//            textCaptured.setText(captureText);
+//            Log.d("resumed2", captureStatus + captureText);
+//        }
     }
 
     /**
@@ -207,51 +247,6 @@ public class MainActivity extends AppCompatActivity {
         public int getCount() {
             // Show 2 total pages.
             return 2;
-        }
-    }
-
-    public static void detectText(String filePath, Activity activity) throws Exception {
-//                .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
-//        Context.Storage storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
-
-//        Storage storage = StorageOptions.getDefaultInstance().getService();
-        List<AnnotateImageRequest> requests = new ArrayList<>();
-
-        String[] permissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
-        ActivityCompat.requestPermissions(activity,permissions,120);
-//        ByteString imgBytes = ByteString.readFrom(new FileInputStream(filePath));
-
-//        Image img = Image.newBuilder().setContent(imgBytes).build();
-//        Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
-//        AnnotateImageRequest request =
-//                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
-//        requests.add(request);
-
-        // requests cloud image
-        ImageSource imgSource = ImageSource.newBuilder().setGcsImageUri(filePath).build();
-        Image img = Image.newBuilder().setSource(imgSource).build();
-        Feature feat = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
-        AnnotateImageRequest request =
-                AnnotateImageRequest.newBuilder().addFeatures(feat).setImage(img).build();
-        requests.add(request);
-
-        try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
-            BatchAnnotateImagesResponse response = client.batchAnnotateImages(requests);
-            List<AnnotateImageResponse> responses = response.getResponsesList();
-
-            for (AnnotateImageResponse res : responses) {
-                if (res.hasError()) {
-//                    out.printf("Error: %s\n", res.getError().getMessage());
-                    return;
-                }
-
-                // For full list of available annotations, see http://g.co/cloud/vision/docs
-                for (EntityAnnotation annotation : res.getTextAnnotationsList()) {
-                        Log.d("result",annotation.getDescription());
-//                    out.printf("Text: %s\n", annotation.getDescription());
-//                    out.printf("Position : %s\n", annotation.getBoundingPoly());
-                }
-            }
         }
     }
 }
