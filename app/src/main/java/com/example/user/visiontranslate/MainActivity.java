@@ -64,6 +64,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -117,15 +119,21 @@ public class MainActivity extends AppCompatActivity {
 
         mViewPager.addOnPageChangeListener(new TabLayout.TabLayoutOnPageChangeListener(tabLayout));
         tabLayout.addOnTabSelectedListener(new TabLayout.ViewPagerOnTabSelectedListener(mViewPager));
-//
-//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-//        fab.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-//            }
-//        });
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+                String holder = preferences.getString("selection","");
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putString("selection", "");
+                editor.commit();
+                Snackbar.make(view, "Saved Data Cleared", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        });
 
     }
 
@@ -228,38 +236,51 @@ public class MainActivity extends AppCompatActivity {
 
                             SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
                             String holder = preferences.getString("selection","");
+                            if (holder.isEmpty()){
+                                Toast toast = Toast.makeText(getActivity(),"There is no data saved" ,Toast.LENGTH_SHORT);
+                                toast.show();
+                            } else {
+                                Toast toast2 = Toast.makeText(getActivity(),"Saved Data: " +  holder ,Toast.LENGTH_SHORT);
+                                toast2.show();
+                                String urlFriendly = "";
+                                try{
+                                    urlFriendly = URLEncoder.encode(holder, "utf-8");
 
-                            Toast toast2 = Toast.makeText(getActivity(),"Saved Data: " +  holder ,Toast.LENGTH_SHORT);
-                            toast2.show();
-                            String url = "https://translation.googleapis.com/language/translate/v2?target=es&key=AIzaSyBCQdqCtwkabyNwvkaSlb4D4ySYjFh-JA8&q=My%20name%20is%20Steve";
+                                    String url = "https://translation.googleapis.com/language/translate/v2?target=es&key=AIzaSyBCQdqCtwkabyNwvkaSlb4D4ySYjFh-JA8&q="+urlFriendly;
 
-                            JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
-                                    (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+                                    JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                                            (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
 
-                                        @Override
-                                        public void onResponse(JSONObject response) {
-                                            String transalatedText = "";
-                                            try {
-                                                JSONObject data = response.getJSONObject("data");
-                                                JSONArray translations = data.getJSONArray("translations");
-                                                transalatedText = translations.getJSONObject(0).getString("translatedText");
-                                            }catch (JSONException e) {
-                                                Log.e("Error", e.getMessage());
-                                                e.printStackTrace();
-                                            }
-                                            Toast toast = Toast.makeText(getActivity(),"Translated Data: " +  transalatedText ,Toast.LENGTH_SHORT);
-                                            toast.show();
-                                        }
-                                    }, new Response.ErrorListener() {
+                                                @Override
+                                                public void onResponse(JSONObject response) {
+                                                    String transalatedText = "";
+                                                    try {
+                                                        JSONObject data = response.getJSONObject("data");
+                                                        JSONArray translations = data.getJSONArray("translations");
+                                                        transalatedText = translations.getJSONObject(0).getString("translatedText");
+                                                    }catch (JSONException e) {
+                                                        Log.e("Error", e.getMessage());
+                                                        e.printStackTrace();
+                                                    }
+                                                    Toast toast = Toast.makeText(getActivity(),"Translated Data: " +  transalatedText ,Toast.LENGTH_SHORT);
+                                                    toast.show();
+                                                }
+                                            }, new Response.ErrorListener() {
 
-                                        @Override
-                                        public void onErrorResponse(VolleyError error) {
-                                            Toast toast = Toast.makeText(getActivity(),"Translation Failed: " +  error.toString() ,Toast.LENGTH_SHORT);
-                                            toast.show();
-                                        }
-                                    });
+                                                @Override
+                                                public void onErrorResponse(VolleyError error) {
+                                                    Toast toast = Toast.makeText(getActivity(),"Translation Failed: " +  error.toString() ,Toast.LENGTH_SHORT);
+                                                    toast.show();
+                                                }
+                                            });
 
-                            ((MainActivity)getActivity()).getmRequestQueue().add(jsonObjectRequest);
+                                    ((MainActivity)getActivity()).getmRequestQueue().add(jsonObjectRequest);
+                                }catch(UnsupportedEncodingException e) {
+                                    Toast toast = Toast.makeText(getActivity(),"Error encoding string: " +  e.toString() ,Toast.LENGTH_SHORT);
+                                    toast.show();
+                                }
+                            }
+
                         }
                     });
 
@@ -291,15 +312,6 @@ public class MainActivity extends AppCompatActivity {
             Toast toast2 = Toast.makeText(this,"Saved Data: " +  holder + captureText + "@#@",Toast.LENGTH_SHORT);
             toast2.show();
         }
-//        if(getApplicationContext()!= null){
-//            Activity rootView = this.getView();
-//            TextView textStatus = (TextView)rootView.findViewById(R.id.status);
-//            textStatus.setText(captureStatus);
-//
-//            TextView textCaptured = (TextView)rootView.findViewById(R.id.result);
-//            textCaptured.setText(captureText);
-//            Log.d("resumed2", captureStatus + captureText);
-//        }
     }
 
     /**
